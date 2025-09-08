@@ -1,46 +1,38 @@
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.File;
 import java.math.BigInteger;
+import java.nio.file.*;
 import java.util.*;
+import java.util.regex.*;
 
 public class PolynomialConstant {
     public static void main(String[] args) throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode root = mapper.readTree(new File("testcase.json"));
-
-        int n = root.get("keys").get("n").asInt();
-        int k = root.get("keys").get("k").asInt();
-
+        String json = new String(Files.readAllBytes(Paths.get("testcase.json")));
+        int n = extractInt(json, "\"n\"\\s*:\\s*(\\d+)");
+        int k = extractInt(json, "\"k\"\\s*:\\s*(\\d+)");
+        Pattern pattern = Pattern.compile("\\{\\s*\"base\"\\s*:\\s*\"(\\d+)\",\\s*\"value\"\\s*:\\s*\"([^\"]+)\"\\s*\\}");
+        Matcher matcher = pattern.matcher(json);
         List<BigInteger> roots = new ArrayList<>();
-        Iterator<String> fieldNames = root.fieldNames();
-
-        while (fieldNames.hasNext()) {
-            String field = fieldNames.next();
-            if (!field.equals("keys")) {
-                JsonNode node = root.get(field);
-                int base = node.get("base").asInt();
-                String value = node.get("value").asText();
-                BigInteger decimalValue = new BigInteger(value, base);
-                roots.add(decimalValue);
-            }
+        while (matcher.find()) {
+            int base = Integer.parseInt(matcher.group(1));
+            String valueStr = matcher.group(2);
+            roots.add(new BigInteger(valueStr, base));
         }
-
-        Collections.sort(roots);
         List<BigInteger> selectedRoots = roots.subList(0, k);
-
         BigInteger constant = BigInteger.ONE;
         for (BigInteger r : selectedRoots) {
             constant = constant.multiply(r);
         }
-
-        int degree = selectedRoots.size();
-        if (degree % 2 != 0) {
+        if (k % 2 == 1) {
             constant = constant.negate();
         }
-
         System.out.println("Roots used: " + selectedRoots);
         System.out.println("Polynomial constant term: " + constant);
+    }
+
+    private static int extractInt(String text, String regex) {
+        Matcher m = Pattern.compile(regex).matcher(text);
+        if (m.find()) {
+            return Integer.parseInt(m.group(1));
+        }
+        return 0;
     }
 }
